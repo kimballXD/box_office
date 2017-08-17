@@ -39,12 +39,12 @@ def _preprocessing(skip_crawl=False):
     if skip_crawl:
         return glob.glob('raw\\*.html')
     
+    # get full box office pdf (for the first page...this part needs to modify when paging mechanism kicks in....
     page=requests.get('http://www.tfi.org.tw/about-publicinfo04.asp')
     pageSoup=bs(page.text, 'lxml')
     uris=['http://www.tfi.org.tw/'+x.get('href')  for x in pageSoup.select('a[href^=viewfile]')]
     paths=['raw\\{}.pdf'.format(x.split('=')[-1]) for x in uris]    
 
-    # get full box office pdf (for the first page...this part needs to modify when paging mechanism kicks in....
     items=zip(uris,paths)
     for uri, path in items:
         with open(path,'wb') as out:
@@ -179,7 +179,6 @@ if __name__=='__main__':
     parser.add_argument('-a','--append', help='file path of appending data, must be tab-delimited file')
     parser.add_argument('--level', default='INFO')
     args=parser.parse_args()
-    print args.skip_crawl, args.append, args.level
     main(args.skip_crawl, args.append, args.level)
     
     
