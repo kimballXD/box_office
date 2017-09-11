@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-box_office: parsing Taiwan box office pdf file released by Taiwan Film Institute
+box_office: parsing Taiwan box office PDF file released by Taiwan Film Institute
     - Data source: see http://www.tfi.org.tw/about-publicinfo04.asp
-    - Environment: python 2.7.12 build from Anaconda 4.1.1, running on Windows 10
+    - Dev Environment: python 2.7.12 build from Anaconda 4.1.1, running on Windows 10
     - PDF conversion tool: use pdf2htmlEX, see https://github.com/coolwanglu/pdf2htmlEX
   
 Usage: box.py [-h] [-s] [-a APPEND] [--level LEVEL]
 optional arguments:
     -s, --skip-crawl 
-        Skipping crawl PDF from the internet, ALSO skip pdf-to-html conversion.
+        Skip crawling PDF file from internet, ALSO skip pdf-to-html conversion step.
         Speed up processing if pdf/html file are already stored in the local. May use after the first run.      
     -a APPEND, --append APPEND
         Specify the file path of the data file, which content will be appended after the parsed data. 
@@ -20,7 +20,11 @@ Output:
     - box.xlsx: parsed data. xlsx foramt.
     - box.csv: parsed data. tab-delimited file, utf8 without BOM.
     - flat.csv: intermediate parsing result, for debugging use.
-  
+
+Example Usage:
+    python box.py
+    python box.py -s -a raw/append.csv --level DEBUG
+    
 @author: kimballXD@gmail.com
 """
 
@@ -151,27 +155,43 @@ def main(skip_crawl, appending, level):
     
     #parse file
     data, source =_parsing(paths)
+ 
+    #formating and output
+    ## using pandas perser to change data type
+    data.to_excel('box.xlsx',index=False, encoding='utf8')       
+    data=pd.read_excel('box.xlsx',index=False, encoding='utf8') 
     
-    ## manually appends the lines which can not be correctly parsed by _parsing, data format should follow pdf/html
+    ## manually appends the lines which can not be correctly parsed by _parsing, and drop the original data which repaied by append file
+    logging.debug('length of data before appending:{}'.format(len(data)))
     if appending:
         append=pd.read_csv('raw\\append.csv',encoding='utf',sep='\t')
+        keep_idx=[]
+        for idx, x in data.iterrows():
+            drop=False
+            for idx2, y in append.iterrows():
+                if x['fileName']==y['fileName'] and x['pageNum']==y['pageNum'] and x['lineIdx']==y['lineIdx']:
+                    drop=True
+                    break
+            keep_idx.append(True if not drop else False)
+        data=data[keep_idx]  
         data=data.append(append)     
-
-    #formating and output
-    data.to_excel('box.xlsx',index=False, encoding='utf8')       
-    data=pd.read_excel('box.xlsx',index=False, encoding='utf8') # using pandas perser to change data type
-    data=data.groupby(['name','pubDate']).apply(lambda x:x.sort_values('fileName').iloc[-1,:]) #get rid of duplicated data
+    logging.debug('length of data after appending file and drop original data:{}'.format(len(data)))    
+    
+    ## get rid of duplicated data
+    data=data.groupby(['name','pubDate']).apply(lambda x:x.sort_values('fileName').iloc[-1,:])
+    data=pd.DataFrame([x for x in data])
+    
     data['pubDate']=[y.date().isoformat() for y in data.pubDate]
     data['underRanking']=data['fileName'].apply(lambda x:x==newest_file)
     data['source']=data['fileName'].map(source)
+    data=data.sort_values('sales', ascending=False)
     data.columns=[u'檔案名稱',u'頁碼',u'行號',u'國別地區',u'中文片名',u'上映日期',u'上映日數',u'上映院數',u'累計銷售票數',u'累計銷售金額',u'統計中',u'資料來源']
     data=data.reindex_axis([u'資料來源',u'檔案名稱',u'頁碼',u'行號',u'國別地區',u'中文片名',u'上映日期',u'上映日數',u'上映院數',u'累計銷售票數',u'累計銷售金額',u'統計中'],axis=1)
-
+    
     ## output with two format
     data.to_excel('box.xlsx',index=False, encoding='utf8')    
     data.to_csv('box.csv',index=False, encoding='utf8',sep='\t')    
     
-
 if __name__=='__main__':
     import argparse
     parser = argparse.ArgumentParser()
