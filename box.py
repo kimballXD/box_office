@@ -28,6 +28,7 @@ Example Usage:
 @author: kimballXD@gmail.com
 """
 
+import traceback
 import re
 import datetime
 import subprocess as sp
@@ -83,7 +84,7 @@ def _parsing(paths):
             ## "split" lines
             idxs=[]
             for idx,x in enumerate(elements): 
-                if re.match(u'^(\d{1,3})$', x.text) or re.match(u'^(\d{1,3}) ([^\d]+)$', x.text): #get lineIdx
+                if re.match(u'^(\d{1,3})$', x.text) or re.match(u'^(\d{1,3})\s+(\W+)$', x.text): #get lineIdx
                     idxs.append(idx)
             last=idxs[-1]
             rest=enumerate(elements[last:])
@@ -104,24 +105,31 @@ def _parsing(paths):
             for i,j in flags:
                 lines.append(u' '.join([x.text for x in elements[i:j]]))   
                 
-            ## parse lines                
-            for line in lines:
-                line=re.sub('\s+',' ',line)
-                split=re.search('(.+?)(\d{4}/\d{1,2}/\d{1,2})',line)
-                part=split.group(1).split()
-                lineIdx=part[0]
-                if part[1] in [u'中華民',u'中國大',u'中國',u'中華',u'加拿',u'匈牙',u'西班',u'俄羅',u'斯洛',u'塞爾維',u'奧地',u'義大',u'羅馬']: # avoid wrong word segmentaton if possible
-                    country= u''.join(part[1:3])
-                    name= u''.join(part[3:])
-                else:
-                    country=part[1]
-                    name= u''.join(part[2:])
-                pubDate=split.group(2)
-                pubDate=datetime.datetime.strptime(pubDate, '%Y/%m/%d').date()
-                pubDays, pubTheaters, tickets, sales=[x.replace(',','') for x in line.split(' ')[-4:]]           
-                parse.append([fileName, pageNum, lineIdx, country, name, pubDate, pubDays, pubTheaters, tickets, sales])
-                # logging flat file
-                [flat.append(u'{}\t{}\t{}\t{}'.format(fileName, pageNum, idx, x.text)) for idx,x in enumerate(elements)]
+            ## parse lines
+            try:
+                for line in lines:
+                    line=re.sub('\s+',' ',line)
+                    split=re.search('(.+?)(\d{4}/\d{1,2}/\d{1,2})',line)
+                    part=split.group(1).split()
+                    lineIdx=part[0]
+                    if part[1] in [u'中華民',u'中國大',u'中國',u'中華',u'加拿',u'匈牙',u'西班',u'俄羅',u'斯洛',u'塞爾維',u'奧地',u'義大',u'羅馬']: # avoid wrong word segmentaton if possible
+                        country= u''.join(part[1:3])
+                        name= u''.join(part[3:])
+                    else:
+                        country=part[1]
+                        name= u''.join(part[2:])
+                    pubDate=split.group(2)
+                    pubDate=datetime.datetime.strptime(pubDate, '%Y/%m/%d').date()
+                    pubDays, pubTheaters, tickets, sales=[x.replace(',','') for x in line.split(' ')[-4:]]           
+                    parse.append([fileName, pageNum, lineIdx, country, name, pubDate, pubDays, pubTheaters, tickets, sales])
+                    # logging flat file
+                    [flat.append(u'{}\t{}\t{}\t{}'.format(fileName, pageNum, idx, x.text)) for idx,x in enumerate(elements)]
+            except Exception as e:
+#                print lines
+                logging.error(u'[ERROR] Failed when parse lines:\n'+line)
+                logging.error(u'[ERROR] All page lines:\n'+u'\n'.join(lines))
+                traceback.print_exc()
+                raise e
         logging.info('End of parsing {}.'.format(fileName))
 
     #end parsing                
@@ -190,8 +198,12 @@ def main(skip_crawl, appending, level):
     
     ## output with two format
     data.to_excel('box.xlsx',index=False, encoding='utf8')    
-    data.to_csv('box.csv',index=False, encoding='utf8',sep='\t')    
-    
+    data.to_csv('box.csv',index=False, encoding='utf8',sep='\t')
+    logging.info('[SUCCESS] finish parsing!')
+    logging.info('the number of lines from newest file: {} lines'.format(data[u'統計中'].sum()))
+
+#main(True, 'raw/append.txt', 'DEBUG')
+#%%    
 if __name__=='__main__':
     import argparse
     parser = argparse.ArgumentParser()
