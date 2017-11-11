@@ -73,7 +73,8 @@ def _preprocessing(skip_crawl=False, latest_crawl=0):
     page=requests.get('http://www.tfi.org.tw/about-publicinfo04.asp')
     pageSoup=bs(page.text, 'lxml')
     uris=['http://www.tfi.org.tw/'+x.get('href')  for x in pageSoup.select('a[href^=viewfile]')]
-    paths=['raw\\{}.pdf'.format(x.split('=')[-1]) for x in uris][latest_crawl*-1:]
+    paths=['raw\\{}.pdf'.format(x.split('=')[-1]) for x in uris]
+    paths=sorted(paths)[latest_crawl*-1:]
     
     items=zip(uris,paths)
     for uri, path in items:
@@ -84,7 +85,7 @@ def _preprocessing(skip_crawl=False, latest_crawl=0):
     # covert pdf to html using pdf2htmlEX
     for path in paths:        
         sp.check_call('bin\\pdf2htmlEX\\pdf2htmlEX.exe {} --dest-dir raw'.format(path), shell=True)        
-    return paths
+    return glob.glob('raw\\*.html')
 
 def _parse_line_index(elements):
     idxs=[]
