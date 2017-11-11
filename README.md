@@ -5,11 +5,7 @@
 
 ## Summary 概要
   - 解析國家電影中心所公佈的[全國電影票房 PDF](http://www.tfi.org.tw/about-publicinfo04.asp)，
-<<<<<<< HEAD
   - 自動抓取並合併所有公佈的PDF，解析後存成 [xlsx](https://github.com/kimballXD/box_office/blob/master/box.xlsx) / [csv](https://github.com/kimballXD/box_office/blob/master/box.csv). 若只須使用資料，請直接下載即可
-=======
-  - 自動抓取並合併所有公佈的PDF，解析後存成 xlsx / csv. 若只須使用資料，請直接下載即可
->>>>>>> 9bd384f99eae3fb1b78da1138a2ccbe9be5404e8
   - 最新資料版本： 合併至**全國電影票房截至2017年十月前資訊**。
   
 ## Technical Infos 技術資訊
@@ -17,7 +13,6 @@
   - PDF to html conversion using [`PDF2htmlEX`](https://github.com/coolwanglu/pdf2htmlEX)
   
 ### Usage 使用方式
-<<<<<<< HEAD
 
 box.py [-h] [-l N] [-s] [-a APPEND] [-d drop] [--level LEVEL]</br>
 * `-l, --latest-crawl N`</br>
@@ -59,7 +54,6 @@ box.py [-h] [-l N] [-s] [-a APPEND] [-d drop] [--level LEVEL]</br>
 * python box.py -s -i -a raw/append.csv -d raw/drop.csv
 
 
->>>>>>> 9bd384f99eae3fb1b78da1138a2ccbe9be5404e8
 ### Issues 已知問題
   - [未處理] 由於格式混亂 + 我弱，原始資料中的「申請人」和「出品」等兩個欄位沒解析出來，有需要的人請加油。
   - [手動處理完成] 若「國名地區」欄位若超過三個中文字（在某些頁面是超過二個中文字）時，在解析過程中會被截斷。截斷的部份會跟後面的「中文片名」欄位連在一起，造成這兩個欄位解析錯誤。目前已經用 hardcode + 「補充紀錄檔」處理完成。
