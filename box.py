@@ -9,15 +9,21 @@ Usage: box.py [-h] [-s] [-a APPEND] [--level LEVEL]
 optional arguments:
     -l, --latest-crawl N
         Only crawl and convert latest N number of PDF Files. 
-        Use this argument when you data is published and you want keep up-to-update. e.g.: '-l 1'
-        '-l 0' means crawl all.
+        Use this argument when you data is published and you want keep up-to-update. 
+        e.g.: '-l 1', '-l 0' means crawl all.
     -s, --skip-crawl 
         Skip crawling PDF file from internet, ALSO skip pdf-to-html conversion step.
         Speed up processing if pdf/html file are already stored in the local. May use after the first run.      
-        --skip-crawl CANCELS --latest-crawl
+        --skip-crawl OVERIDES --latest-crawl
+    -i, --ignore-exc
+        Ignore problem founds in the parsing stage. Please confirm you have take care of all problems, 
+        then use -i to preceed data output in the NEXT submit.
     -a APPEND, --append APPEND
         Specify the file path of supplementing data file, which content will be appended after the parsed data. 
         The file should be a tab-delimited file. See raw\\append.csv for a real example.
+    -d DROP, --drop DROP
+        Specify the file path of drop data file, which content appears in the parsed data will be DROPPED.
+        The file should be a tab-delimited file. See raw\\drop.csv for a real example.
     --level LEVEL 
         Logging level of python built-in logging module.
           
@@ -27,13 +33,12 @@ Output:
     - flat.csv: intermediate parsing result, for debugging use.
 
 Example Usage:
-    python box.py
-    python box.py -s -a raw/append.csv --level DEBUG
+    python box.py -l 1
+    python box.py -s -a raw/append.csv -d raw/drop.csv --level DEBUG
     
 @author: kimballXD@gmail.com
 """
 import os
-import traceback
 import re
 import datetime
 import subprocess as sp
@@ -44,7 +49,22 @@ import requests
 from bs4 import BeautifulSoup as bs
 import pandas as pd
 
-
+  
+def _see_flat_page(path, page, prnt=True):
+    """debuging utilities"""
+    with open(path,'rb') as infile:
+        soup=bs(infile,'lxml')
+    pages=soup.select('div[data-page-no]')
+    for x in pages:
+        if x.get('data-page-no')!=hex(page).replace('0x',''):
+            continue
+        else:
+            elements=x.select('div > div > div')
+            if prnt:
+                for idx, y in enumerate(elements):
+                    print idx, y.text
+            return [x.text for x in elements]    
+#%%
 def _preprocessing(skip_crawl=False, latest_crawl=0):
     if skip_crawl:
         return glob.glob('raw\\*.html')
@@ -87,15 +107,16 @@ def _parse_line_index(elements):
         return (False, (idxs, e))
 
 def _parse_page_num(idxs, rest, fileName):
+    annotation=False
     for idx, x in rest:
         if re.search('^\*',x.text): #check if there is an annotation line
             logging.warning('Found annotation line (i.e., began with "*") in the end of {}. May cause parsing error.'.format(fileName))
-            
+            annotation=True
         footer=re.search(u'第([\d ]+)頁，共[\d ]+頁', x.text) # get page number from footer
         if footer:
             pageNum=footer.group(1).strip()
             break
-    return pageNum
+    return pageNum, annotation
 
 def _parse_line(line):
     line=re.sub('\s+',' ',line)
@@ -115,6 +136,7 @@ def _parse_line(line):
     return line_parsed
 
 def _parse_page(fileName, page, source, parse, flat, ignore_exc=False):
+    excs=False
   #start logging
     pageNo=page.get('data-page-no')
     logging.debug('start parsing {}, page {}'.format(fileName ,pageNo))    
@@ -126,13 +148,15 @@ def _parse_page(fileName, page, source, parse, flat, ignore_exc=False):
     if index_parsed[0]:
         idxs, rest = index_parsed[1][0], index_parsed[1][1]
     else:
+        #absolute failed
         logging.error('[Failed] Fail {}, page {} failed on parsing line index!'.format(fileName ,pageNo))
         logging.error('current index list: '+ ','.join(index_parsed[1][0]))
-        logging.error('Please check flatten page with _see_page_flat and the index list!')
         raise index_parsed[1][1]
 
     ##get_page_number
-    pageNum=_parse_page_num(idxs, rest, fileName)
+    pageNum, annotaion=_parse_page_num(idxs, rest, fileName)
+    if annotaion:
+        excs=True
 
     ## "split" lines
     flags=zip(idxs[:-1],idxs[1:])
@@ -158,14 +182,13 @@ def _parse_page(fileName, page, source, parse, flat, ignore_exc=False):
         else:
             gaps+=1
     if gaps:
+        excs=True
         logging.error('[FAILED] File {}, page {} failed to pass the line index consecutivity check! Gaps: {}'.format(fileName, pageNo, gaps))
         logging.error('Current parsed index list: '+ ','.join([str(x) for x in idx_parsed]))
-        logging.error('Please check flatten page with _see_page_flat and the index list!')
-        if not ignore_exc:
-            raise Exception('Custume Error. Please see logging error messege.')
-
+       
     ## End of parse_page
     flat.extend([u'{}\t{}\t{}\t{}'.format(fileName, pageNum, idx, x.text) for idx,x in enumerate(elements)])
+    return excs
 
 def _parsing(paths, ignore_exc):
     flat=[]
@@ -175,40 +198,33 @@ def _parsing(paths, ignore_exc):
 
     #start parsing!
     ## parse file
+    job_excs=False
     for path in html_paths:
         fileName=path.split('\\')[-1].replace('.html','.pdf')
         with open(path,'rb') as infile:
             soup=bs(infile,'lxml')
         pages=soup.select('div[data-page-no]')
         for page in pages:
-            _parse_page(fileName, page, source, parse, flat, ignore_exc)
+            page_res=_parse_page(fileName, page, source, parse, flat)
+            job_excs= job_excs or page_res
+
+    if job_excs:
+        if not ignore_exc:
+            raise Exception('[Job Stop] Job stopped due to sth. wrong happend. Please the read warning/error messege and take care of all problems, then use -i option to IGNORE exception to proceed to the output of data.')
+        else:
+            logging.warning('[WARNING] Sth. wrong happend but ignored because of ignore-exc option has been used. Please make sure all problem has been managed properly. Proceeding to the output of data.')
+
             
     #end parsing
     data=pd.DataFrame(parse,columns=['fileName', 'pageNum', 'lineIdx', 'country', 'name', 'pubDate', 'pubDays', 'pubTheaters', 'tickets', 'sales'])
     with open('flat.csv','wb') as flatfile: # dump flat file for debugging
         flatfile.write((u'\n'.join(flat)).encode('utf8'))
     return data, source
-#%%
-  
-def _see_flat_page(path, page, prnt=True):
-    """debuging utilities"""
-    with open(path,'rb') as infile:
-        soup=bs(infile,'lxml')
-    pages=soup.select('div[data-page-no]')
-    for x in pages:
-        if x.get('data-page-no')!=hex(page).replace('0x',''):
-            continue
-        else:
-            elements=x.select('div > div > div')
-            if prnt:
-                for idx, y in enumerate(elements):
-                    print idx, y.text
-            return [x.text for x in elements]    
+
 #%%
 
 def _processing_sup_data(data, sup_data_path, appending=False):   
-    logging.debug('length of data before processsing supplementing data {}: {}'.format(os.path.basename(sup_data_path) ,len(data)))
-    
+    logging.debug('length of data before processsing supplementing data {}: {}'.format(os.path.basename(sup_data_path) ,len(data)))    
     #processing
     sup_data=pd.read_csv(sup_data_path ,encoding='utf',sep='\t', parse_dates=[5], infer_datetime_format=True)
     check_keys=['fileName','pageNum','lineIdx']
@@ -234,15 +250,17 @@ def main(latest_crawl, skip_crawl, ignore_exc, appending, dropping, level='INFO'
     ## using pandas perser to change data type
     data.to_excel('box.xlsx',index=False, encoding='utf8')       
     data=pd.read_excel('box.xlsx',index=False, encoding='utf8') 
-    ## manually appends the lines which can not be correctly parsed by _parsing, and drop the original data which repaired by append file
     
+    ## manually appends the lines which can not be correctly parsed by _parsing, and drop the original data which repaired by append file
     for sup_data, act in [[appending, True],[dropping, False]]:
-        data=_processing_sup_data(data, sup_data, act)
+        if sup_data:
+            data=_processing_sup_data(data, sup_data, act)
         
-#    # get rid of duplicated data
+    ## get rid of duplicated data
     data=data.groupby(['name','pubDate']).apply(lambda x:x.sort_values('fileName').iloc[-1,:])
     data=data.reset_index(drop=True)
-        
+       
+    #formatting
     data['pubDate']=[y.date().isoformat() for y in data.pubDate]
     data['underRanking']=data['fileName'].apply(lambda x:x==newest_file)
     data['source']=data['fileName'].map(source)
@@ -257,7 +275,8 @@ def main(latest_crawl, skip_crawl, ignore_exc, appending, dropping, level='INFO'
     logging.info('the number of lines from newest file: {} lines'.format(data[u'統計中'].sum()))
     return data
 
-#data=main(latest_crawl=0, skip_crawl=True, ignore_exc=True, appending='raw/append.csv', dropping='raw/drop.csv',level='INFO')
+#test
+#data=main(latest_crawl=0, skip_crawl=True, ignore_exc=False, appending='raw/append.csv', dropping='raw/drop.csv',level='INFO')
 #%%    
 if __name__=='__main__':
     import argparse
