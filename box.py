@@ -76,7 +76,7 @@ def _preprocessing(skip_crawl=False, latest_crawl=0):
     paths=['raw\\{}.pdf'.format(x.split('=')[-1]) for x in uris]
     paths=sorted(paths)[latest_crawl*-1:]
     
-    items=zip(uris,paths)
+    items=zip(sorted(uris),paths)
     for uri, path in items:
         with open(path,'wb') as out:
             rep=requests.get(uri, stream=True)
@@ -136,7 +136,7 @@ def _parse_line(line):
     line_parsed=[lineIdx, country, name, pubDate, pubDays, pubTheaters, tickets, sales]
     return line_parsed
 
-def _parse_page(fileName, page, source, parse, flat, ignore_exc=False):
+def _parse_page(fileName, page, source, parse, flat, latest_idx):
     excs=False
   #start logging
     pageNo=page.get('data-page-no')
@@ -176,7 +176,7 @@ def _parse_page(fileName, page, source, parse, flat, ignore_exc=False):
     idx_parsed=sorted([int(x) for x in idx_parsed])
     gaps=0
     for idx, x in enumerate(idx_parsed):
-        if idx==0:
+        if idx==0 and x-latest_idx==1:
             continue
         elif idx>0 and x-idx_parsed[idx-1]==1:
             continue
@@ -185,11 +185,12 @@ def _parse_page(fileName, page, source, parse, flat, ignore_exc=False):
     if gaps:
         excs=True
         logging.error('[FAILED] File {}, page {} failed to pass the line index consecutivity check! Gaps: {}'.format(fileName, pageNo, gaps))
+        logging.error('last idx of previous page: {}'.format(latest_idx))
         logging.error('Current parsed index list: '+ ','.join([str(x) for x in idx_parsed]))
-       
+               
     ## End of parse_page
     flat.extend([u'{}\t{}\t{}\t{}'.format(fileName, pageNum, idx, x.text) for idx,x in enumerate(elements)])
-    return excs
+    return excs, idx_parsed[-1]
 
 def _parsing(paths, ignore_exc):
     flat=[]
@@ -205,15 +206,16 @@ def _parsing(paths, ignore_exc):
         with open(path,'rb') as infile:
             soup=bs(infile,'lxml')
         pages=soup.select('div[data-page-no]')
+        latest_idx=0
         for page in pages:
-            page_res=_parse_page(fileName, page, source, parse, flat)
+            page_res, latest_idx=_parse_page(fileName, page, source, parse, flat, latest_idx)
             job_excs= job_excs or page_res
-
+            
     if job_excs:
         if not ignore_exc:
             raise Exception('[Job Stop] Job stopped due to sth. wrong happend. Please the read warning/error messege and take care of all problems, then use -i option to IGNORE exception to proceed to the output of data.')
         else:
-            logging.warning('[WARNING] Sth. wrong happend but ignored because of ignore-exc option has been used. Please make sure all problem has been managed properly. Proceeding to the output of data.')
+            logging.warning('[WARNING] Sth. wrong happend but ignored because ignore-exc option has been used. Please make sure all problem has been managed properly. Proceeding to the output of data.')
 
             
     #end parsing
@@ -251,13 +253,17 @@ def main(latest_crawl, skip_crawl, ignore_exc, appending, dropping, level='INFO'
     ## using pandas perser to change data type
     data.to_excel('box.xlsx',index=False, encoding='utf8')       
     data=pd.read_excel('box.xlsx',index=False, encoding='utf8') 
-    
+       
     ## manually appends the lines which can not be correctly parsed by _parsing, and drop the original data which repaired by append file
     for sup_data, act in [[appending, True],[dropping, False]]:
         if sup_data:
             data=_processing_sup_data(data, sup_data, act)
+
+    ##loggging number of parsed line in every file
+    for idx, x in data.groupby('fileName').size().iteritems():
+        logging.info('[INFO] Parsed {} lines (including append/drop data) from {}'.format(x, idx))
         
-    ## get rid of duplicated data
+    ## drop duplicated data
     data=data.groupby(['name','pubDate']).apply(lambda x:x.sort_values('fileName').iloc[-1,:])
     data=data.reset_index(drop=True)
        
