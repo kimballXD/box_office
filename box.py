@@ -70,12 +70,14 @@ def _preprocessing(skip_crawl=False, latest_crawl=0):
         return glob.glob('raw\\*.html')
     
     # get full box office pdf (for the first page...this part needs to modify when paging mechanism kicks in....
-    page=requests.get('http://www.tfi.org.tw/about-publicinfo04.asp')
-    pageSoup=bs(page.text, 'lxml')
-    uris=['http://www.tfi.org.tw/'+x.get('href')  for x in pageSoup.select('a[href^=viewfile]')]
+    uris=[]
+    for index_url in ['http://www.tfi.org.tw/about-publicinfo04.asp','http://www.tfi.org.tw/about-publicinfo05.asp']:
+        page=requests.get(index_url)
+        pageSoup=bs(page.text, 'lxml')
+        uris.extend(['http://www.tfi.org.tw/'+x.get('href')  for x in pageSoup.select('a[href^=viewfile]')])
+
     paths=['raw\\{}.pdf'.format(x.split('=')[-1]) for x in uris]
-    paths=sorted(paths)[latest_crawl*-1:]
-    
+    paths=sorted(paths)[latest_crawl*-1:]        
     items=zip(sorted(uris),paths)
     for uri, path in items:
         with open(path,'wb') as out:
@@ -255,15 +257,16 @@ def main(latest_crawl, skip_crawl, ignore_exc, appending, dropping, level='INFO'
     data=pd.read_excel('box.xlsx',index=False, encoding='utf8') 
        
     ## manually appends the lines which can not be correctly parsed by _parsing, and drop the original data which repaired by append file
-    for sup_data, act in [[appending, True],[dropping, False]]:
-        if sup_data:
-            data=_processing_sup_data(data, sup_data, act)
+    if appending:
+        data=_processing_sup_data(data, appending, True)
 
     ##loggging number of parsed line in every file
     for idx, x in data.groupby('fileName').size().iteritems():
         logging.info('[INFO] Parsed {} lines (including append/drop data) from {}'.format(x, idx))
         
-    ## drop duplicated data
+    ## drop duplicated and error data
+    if dropping:
+        data=_processing_sup_data(data, dropping, False)           
     data=data.groupby(['name','pubDate']).apply(lambda x:x.sort_values('fileName').iloc[-1,:])
     data=data.reset_index(drop=True)
        
@@ -283,7 +286,7 @@ def main(latest_crawl, skip_crawl, ignore_exc, appending, dropping, level='INFO'
     return data
 
 #test
-#data=main(latest_crawl=0, skip_crawl=True, ignore_exc=False, appending='raw/append.csv', dropping='raw/drop.csv',level='INFO')
+#data=main(latest_crawl=0, skip_crawl=False, ignore_exc=False, appending='raw/append.csv', dropping='raw/drop.csv', level='INFO')
 #%%    
 if __name__=='__main__':
     import argparse
