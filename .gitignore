@@ -1,4 +1,8 @@
-raw/*.pdf
-raw/*.html
-flat.csv
-~*
+*
+!box.py
+!box.xlsx
+!box.csv
+!hist.csv
+!hist.xlsx
+!README.md
+!raw/*.csv
