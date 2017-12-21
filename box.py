@@ -66,7 +66,7 @@ COLUMN_DICTS={'country':u'國別地區','cur_sales':u'本期銷售金額','cur_t
 COLUMN_ORD=[u'資料來源',u'檔案名稱',u'頁碼',u'行號',u'中文片名',u'上映日期',u'國別地區',u'統計起始日',u'統計結束日',u'統計週期',
             u'本期上映院數',u'本期銷售票數',u'本期銷售金額',u'累計上映天數',u'上映週數',u'最大上映院數',u'累計銷售票數',u'累計銷售金額',u'統計中']
 
-RANKING_ORD=[u'資料來源',u'檔案名稱',u'頁碼',u'行號',u'中文片名',u'上映日期',u'國別地區',u'上映週數',u'最大上映院數',u'累計銷售票數',u'累計銷售金額',u'統計中']
+RANKING_ORD=[u'資料來源',u'檔案名稱',u'頁碼',u'行號',u'中文片名',u'上映日期',u'國別地區',u'上映週數',u'上映院數',u'累計銷售票數',u'累計銷售金額',u'統計中']
 
 MONTH_DATA=[('26.pdf','2016-12-06','2017-01-05'),
             ('27.pdf','2017-01-06','2017-02-05'),
@@ -339,7 +339,7 @@ def _parsing(item_info, ignore_exc):
 
 #%%% ----formating and output
 
-def _processing_sup_data(data, sup_data_path, appending=False):              
+def _processing_sup_data(data, sup_data_path, appending=False):       
     logging.debug('length of data before processsing supplementing data {}: {}'.format(os.path.basename(sup_data_path) ,len(data)))    
     #processing
     sup_data=pd.read_csv(sup_data_path ,encoding='utf',sep='\t', parse_dates=[5], infer_datetime_format=True)
@@ -371,7 +371,7 @@ def _get_pub_weeks(end_date, pubDate):
 
 def _unify_data(gData):
     monthly=gData.loc[gData['range_type']=='monthly',:]
-    weekly=gData.loc[gData['range_type']=='weekly',:]
+
     # monthly: cur_tickets, cur_sales, cur_theaters, pub_weeks
     last_idx=-1
     for idx, row in monthly.iterrows():
@@ -388,9 +388,6 @@ def _unify_data(gData):
        
     # all: pub_weeks, max_theaters:
     max_theaters=-1
-
-    last_idx=-1
-    lasting=False
     for idx, row in gData.iterrows():
         #max_theaters
         if row['cur_theaters']>max_theaters:
@@ -461,8 +458,8 @@ def main(latest_crawl, ignore_exc, appending, dropping, level='INFO'):
     hist=data.sort_values(['fileName', 'pageNum', 'lineIdx'])
     hist=hist.rename_axis(COLUMN_DICTS, axis=1)
     hist=hist.reindex_axis(COLUMN_ORD, axis=1)
-    hist.to_excel('hist.xlsx',index=False, encoding='utf8')
-    hist.to_csv('hist.csv',index=False, encoding='utf8',sep='\t')
+    hist.to_excel('box_hist.xlsx',index=False, encoding='utf8')
+    hist.to_csv('box_hist.csv',index=False, encoding='utf8',sep='\t')
 
     ranking=data.groupby(['name','pubDate']).apply(lambda gData: gData[gData['index']==gData['index'].max()])
     ranking=ranking.drop(labels='index', axis=1)

@@ -1,4 +1,4 @@
-fileName	 pageNum	 lineIdx	 country	 name	 pubDate	 pub_days	 cur_theaters	 max_theaters	 cur_tickets	cur_sales	 total_tickets	 total_sales
+fileName	pageNum	lineIdx	country	name	pubDate	pub_days	cur_theaters	max_theaters	cur_tickets	cur_sales	total_tickets	total_sales
 27.pdf	7	108	英國、伊朗	闇影之下	2016/12/30	18	-1	3	-1	-1	315	66170
 31.pdf	4	52	英國、伊朗	闇影之下	2016/12/30	18	-1	3	-1	-1	315	66170
 32.pdf	10	83	法國、德國、比利時	她的危險遊戲	2017/2/17	35	-1	8	-1	-1	6318	1383741
@@ -18,3 +18,6 @@ fileName	 pageNum	 lineIdx	 country	 name	 pubDate	 pub_days	 cur_theaters	 max_
 35.pdf	19	125	日本、香港	鄉村醫生+蒙馬特．女書	2017/5/29	3	-1	1	-1	-1	234	37530
 35.pdf	18	122	義大利、法國	索多瑪120天	2017/5/28	3	-1	1	-1	-1	228	37680
 36.pdf	7	65	西班牙、英國、德國、希臘	Google任務：世界之腦	2017/6/6	3	-1	1	-1	-1	103	16440
+49.pdf	11	85	德國、澳洲、義大利	時間之輪	2011/1/21	-1	1	-1	26	4740	26	4740
+50.pdf	3	25	英國、日本、美國	時間簡史	2017/12/4	-1	1	-1	17	3280	67	12520
+50.pdf	13	98	德國、澳洲、義大利	時間之輪	2011/1/21	-1	1	-1	30	5240	56	9980

@@ -6,8 +6,8 @@
   - 若只須使用資料，請直接下載下列檔案即可
 	* 現況檔 [xlsx](https://github.com/kimballXD/box_office/blob/master/box.xlsx)
 	* 現況檔 [csv](https://github.com/kimballXD/box_office/blob/master/box.csv)
-	* 歷史檔 [xlsx](https://github.com/kimballXD/box_office/blob/master/hist.xlsx)
-	* 歷史檔 [csv](https://github.com/kimballXD/box_office/blob/master/hist.csv)
+	* 歷史檔 [xlsx](https://github.com/kimballXD/box_office/blob/master/box_hist.xlsx)
+	* 歷史檔 [csv](https://github.com/kimballXD/box_office/blob/master/box_hist.csv)
   - 最新資料版本： 合併至**全國電影票房截至 2017 年 12/11~12/17 統計資訊**。
   
 ## Technical Infos 技術資訊
@@ -16,7 +16,7 @@
   
 ### Usage 使用方式
 
-box.py [-h] [-l N] [-s] [-a APPEND] [-d drop] [--level LEVEL]</br>
+box.py [-h] [-l N] [-a APPEND] [-d drop] [--level LEVEL]</br>
 * `-l, --latest-crawl N`</br>
 	只爬取並解析最新的 N 個 PDF 檔，用於更新資料。 '-l 0' 或留空即為全部爬取。
 * UPDATE: -s 選項取消。若不選用 -l 選項，則程式會自動比較本地與線上檔案清單的差異，並下載和解析**僅存在於線上的檔案** (i.e., auto-updating)</br>
