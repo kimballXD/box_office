@@ -8,7 +8,7 @@
 	* 現況檔 [csv](https://github.com/kimballXD/box_office/blob/master/box.csv)
 	* 歷史檔 [xlsx](https://github.com/kimballXD/box_office/blob/master/box_hist.xlsx)
 	* 歷史檔 [csv](https://github.com/kimballXD/box_office/blob/master/box_hist.csv)
-  - 最新資料版本： 合併至**全國電影票房截至 2017 年 12/11~12/17 統計資訊**。
+  - 最新資料版本： 合併至**全國電影票房截至 2018 年 01/08~01/14 統計資訊**。
   
 ## Technical Infos 技術資訊
   - Python command line tool, wrote in python 2.7.
